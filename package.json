@@ -1,0 +1,16 @@
+{
+  "name": "valetax-mt5-cloudflare-ai-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mobile UI + Cloudflare Worker AI signal API + MT5 EA scaffold for Valetax MT5.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf:secret": "wrangler secret put APP_TOKEN",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.20.0"
+  }
+}
