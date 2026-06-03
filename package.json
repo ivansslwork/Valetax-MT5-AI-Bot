@@ -8,6 +8,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "cf:secret": "wrangler secret put APP_TOKEN",
+    "devvars": "node scripts/create-dev-vars.mjs",
     "tail": "wrangler tail"
   },
   "devDependencies": {
