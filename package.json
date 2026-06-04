@@ -1,5 +1,5 @@
 {
-  "name": "valetax-mt5-cloudflare-ai-bot",
+  "name": "valetax-mt5-ai-bot",
   "version": "1.0.0",
   "private": true,
   "description": "Mobile UI + Cloudflare Worker AI signal API + MT5 EA scaffold for Valetax MT5.",
