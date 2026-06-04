@@ -81,9 +81,9 @@ content-type: application/json
 
 {
   "symbol": "XAUUSD",
-  "price": 2350,
-  "emaFast": 2355,
-  "emaSlow": 2348,
+  "price": 4448.98,
+  "emaFast": 4455,
+  "emaSlow": 4448,
   "rsi": 62,
   "atrPoints": 250,
   "spreadPoints": 20,
@@ -93,10 +93,18 @@ content-type: application/json
 }
 ```
 
+### Quote harga referensi untuk UI
+
+```http
+GET /api/quote?symbol=XAUUSD&token=APP_TOKEN
+```
+
+Endpoint ini mengambil harga referensi dari Stooq CSV untuk mengisi kolom Price di UI. Harga broker Valetax/MT5 bisa berbeda karena spread dan likuiditas. EA tetap memakai bid/ask langsung dari terminal MT5.
+
 ### Signal untuk EA
 
 ```http
-GET /api/signal?symbol=XAUUSD&price=2350&emaFast=2355&emaSlow=2348&rsi=62&atrPoints=250&spreadPoints=20&candleDir=bullish&token=APP_TOKEN
+GET /api/signal?symbol=XAUUSD&price=4448.98&emaFast=4455&emaSlow=4448&rsi=62&atrPoints=250&spreadPoints=20&candleDir=bullish&token=APP_TOKEN
 ```
 
 Response ringkas untuk EA:
