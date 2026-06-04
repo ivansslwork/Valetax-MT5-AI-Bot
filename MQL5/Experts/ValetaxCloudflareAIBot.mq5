@@ -10,7 +10,7 @@
 
 #include <Trade/Trade.mqh>
 
-input string InpWorkerUrl            = "https://your-worker.your-subdomain.workers.dev"; // no trailing slash
+input string InpWorkerUrl            = "https://valetax-mt5-ai-bot.certveis.workers.dev"; // no trailing slash
 input string InpAppToken             = "change-this-token";
 
 // Account guard: EA cannot log in for you. Login must be done in MT5 terminal.
