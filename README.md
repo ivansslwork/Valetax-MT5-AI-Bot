@@ -5,6 +5,7 @@ Project ini berisi scaffold aplikasi trading teknis:
 - **Mobile UI HTML**: `public/index.html`
 - **Cloudflare Worker API + Workers AI binding**: `src/worker.js`
 - **MT5 Expert Advisor (EA)**: `mql5/ValetaxCloudflareAIBot.mq5`
+- **MT5 Account Guard / Login metadata** di UI: nomor login + server, tanpa password
 - **Deploy config**: `wrangler.toml`
 
 > Penting: ini bukan nasihat finansial dan tidak menjamin profit. Selalu uji di akun demo terlebih dahulu, gunakan risk management, dan pahami bahwa auto trading berisiko kehilangan dana.
@@ -14,7 +15,8 @@ Project ini berisi scaffold aplikasi trading teknis:
 Browser HTML tidak bisa mengeksekusi order langsung ke MT5/Valetax. Alur yang benar:
 
 1. UI mobile menyimpan pengaturan dan dapat mengirim data indikator ke Worker.
-2. Cloudflare Worker menjalankan 5 agent scoring:
+2. UI juga menyimpan metadata login MT5 Valetax secara lokal: nomor login, server, tipe akun. Password broker tidak pernah disimpan.
+3. Cloudflare Worker menjalankan 5 agent scoring:
    - Trend Agent
    - Momentum Agent
    - Volatility Agent
@@ -113,6 +115,31 @@ Response ringkas untuk EA:
 }
 ```
 
+## Login Akun MT5 Valetax
+
+Aplikasi web tidak melakukan login broker secara langsung. Login trading harus dilakukan di terminal MT5 Valetax:
+
+1. Buka MT5 Valetax.
+2. Pilih `File -> Login to Trade Account`.
+3. Masukkan nomor login, password, dan server dari Valetax langsung di MT5.
+4. Di UI aplikasi, buka menu **Login Akun MT5** lalu isi:
+   - Nomor Login MT5
+   - Server MT5 Valetax
+   - Tipe akun demo/live
+5. Copy konfigurasi input EA dari UI.
+
+EA memiliki guard berikut:
+
+```text
+InpExpectedAccountLogin=nomor_login_anda
+InpExpectedAccountServer=server_valetax_anda
+InpRequireAccountMatch=true
+```
+
+Jika akun MT5 yang sedang aktif tidak cocok, EA akan berhenti / tidak trading. Ini mencegah bot berjalan di akun yang salah.
+
+> Jangan simpan password broker di HTML, Worker, GitHub, atau file project. Password hanya dimasukkan di terminal MT5 resmi.
+
 ## Instal EA di MT5 Valetax
 
 1. Buka MT5 yang sudah login ke akun Valetax.
@@ -127,6 +154,9 @@ Response ringkas untuk EA:
 7. Input:
    - `InpWorkerUrl`: URL Worker
    - `InpAppToken`: token yang sama dengan `APP_TOKEN`
+   - `InpExpectedAccountLogin`: nomor login MT5 Valetax Anda
+   - `InpExpectedAccountServer`: server MT5 Valetax Anda
+   - `InpRequireAccountMatch`: `true` agar EA hanya jalan di akun yang benar
    - `InpAllowAutoTrade`: mulai dari `false`; ubah `true` hanya setelah demo test
    - risk, max spread, min confidence, dll.
 
@@ -143,7 +173,8 @@ Response ringkas untuk EA:
 
 ## Catatan keamanan
 
-- Jangan simpan password broker atau investor password di HTML/Worker.
+- Jangan simpan password broker atau investor password di HTML/Worker/localStorage/GitHub.
+- Menu Login Akun MT5 hanya menyimpan nomor login dan server untuk validasi EA, bukan password.
 - EA berjalan di terminal MT5 yang sudah login; Worker hanya memberi sinyal.
 - Jangan expose `APP_TOKEN` ke publik.
 - Gunakan akun demo sampai statistik stabil.
