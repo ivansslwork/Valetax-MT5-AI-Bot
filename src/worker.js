@@ -24,6 +24,7 @@ export default {
       if (url.pathname === "/api/agents") return json({ ok: true, agents: DEFAULT_AGENTS, aiModel: env.AI_MODEL || "fallback-vote" });
       if (url.pathname === "/api/analyze" && request.method === "POST") return handleAnalyze(request, env);
       if (url.pathname === "/api/signal" && request.method === "GET") return handleSignal(request, env);
+      if (url.pathname === "/api/quote" && request.method === "GET") return handleQuote(request, env);
       if (url.pathname === "/api/prompt" && request.method === "POST") return handlePrompt(request, env);
 
       if (env.ASSETS) return env.ASSETS.fetch(request);
@@ -64,6 +65,14 @@ async function handleSignal(request, env) {
     reason: result.summary,
     time: result.time
   });
+}
+
+async function handleQuote(request, env) {
+  requireAuth(request, env);
+  const url = new URL(request.url);
+  const symbol = String(url.searchParams.get("symbol") || "XAUUSD").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12) || "XAUUSD";
+  const quote = await fetchStooqQuote(symbol);
+  return json({ ok: true, ...quote });
 }
 
 async function handlePrompt(request, env) {
@@ -199,6 +208,50 @@ function riskPlan(input, decision, env) {
   const tpPoints = Math.round(clamp(tpBasis, 20, 50000));
   const maxSpreadPoints = Math.round(clamp(num(input.maxSpreadPoints, 35), 1, 1000));
   return { riskPercent, slPoints, tpPoints, rr, maxSpreadPoints, allowed: decision.action !== "hold" && decision.confidence >= num(input.minConfidence, 65) };
+}
+
+async function fetchStooqQuote(symbol) {
+  // No-key quote source for UI convenience. Broker/MT5 prices can differ by spread/liquidity.
+  const stooqSymbol = symbol === "XAUUSD" ? "xauusd" : symbol.toLowerCase();
+  const res = await fetch(`https://stooq.com/q/l/?s=${encodeURIComponent(stooqSymbol)}&f=sd2t2ohlcv&h&e=csv`, {
+    headers: { "user-agent": "ValetaxCloudflareAIBot/1.0" },
+    cf: { cacheTtl: 15, cacheEverything: false }
+  });
+  if (!res.ok) throw Object.assign(new Error(`Quote provider HTTP ${res.status}`), { status: 502 });
+  const text = await res.text();
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) throw Object.assign(new Error("Quote provider returned no data"), { status: 502 });
+  const row = parseCsvLine(lines[1]);
+  const [srcSymbol, date, time, open, high, low, close, volume] = row;
+  const price = num(close, NaN);
+  if (!Number.isFinite(price)) throw Object.assign(new Error("Quote provider returned invalid price"), { status: 502 });
+  return {
+    symbol,
+    provider: "stooq",
+    providerSymbol: srcSymbol,
+    price,
+    open: num(open, 0),
+    high: num(high, 0),
+    low: num(low, 0),
+    close: price,
+    quoteTime: `${date} ${time} UTC`,
+    fetchedAt: new Date().toISOString(),
+    note: "Harga referensi; harga broker Valetax/MT5 dapat berbeda. EA memakai bid/ask dari MT5."
+  };
+}
+
+function parseCsvLine(line) {
+  const out = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { quoted = !quoted; continue; }
+    if (ch === "," && !quoted) { out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  return out;
 }
 
 function normalizeInput(raw) {
