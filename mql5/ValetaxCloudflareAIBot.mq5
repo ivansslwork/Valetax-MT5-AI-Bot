@@ -12,6 +12,13 @@
 
 input string InpWorkerUrl            = "https://your-worker.your-subdomain.workers.dev"; // no trailing slash
 input string InpAppToken             = "change-this-token";
+
+// Account guard: EA cannot log in for you. Login must be done in MT5 terminal.
+// These inputs ensure the EA only runs on the intended Valetax MT5 account.
+input long   InpExpectedAccountLogin = 0;       // 0 = do not validate login number
+input string InpExpectedAccountServer= "";      // empty = do not validate server
+input bool   InpRequireAccountMatch  = true;
+
 input bool   InpAllowAutoTrade       = false;   // SAFETY: false = signal only
 input bool   InpCloseOpposite        = true;
 input int    InpPollSeconds          = 30;
@@ -47,6 +54,13 @@ int OnInit()
    trade.SetExpertMagicNumber(InpMagicNumber);
    trade.SetDeviationInPoints(InpSlippagePoints);
 
+   PrintAccountInfo();
+   if(!IsAccountAllowed())
+   {
+      Print("Account guard failed. Login to the correct Valetax MT5 account or update InpExpectedAccountLogin/InpExpectedAccountServer.");
+      return INIT_FAILED;
+   }
+
    hFast = iMA(_Symbol, _Period, InpFastEmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
    hSlow = iMA(_Symbol, _Period, InpSlowEmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
    hRsi  = iRSI(_Symbol, _Period, InpRsiPeriod, PRICE_CLOSE);
@@ -77,6 +91,12 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
+   if(InpRequireAccountMatch && !IsAccountAllowed())
+   {
+      Print("Trading blocked: current MT5 account does not match configured Valetax account guard.");
+      return;
+   }
+
    if(TimeCurrent() - lastPoll < InpPollSeconds) return;
    lastPoll = TimeCurrent();
 
@@ -149,6 +169,44 @@ string CandleDirection()
 }
 
 //+------------------------------------------------------------------+
+void PrintAccountInfo()
+{
+   Print("Current MT5 account: login=", IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)),
+         " server=", AccountInfoString(ACCOUNT_SERVER),
+         " company=", AccountInfoString(ACCOUNT_COMPANY),
+         " currency=", AccountInfoString(ACCOUNT_CURRENCY),
+         " balance=", DoubleToString(AccountInfoDouble(ACCOUNT_BALANCE), 2));
+}
+
+//+------------------------------------------------------------------+
+bool IsAccountAllowed()
+{
+   if(!InpRequireAccountMatch) return true;
+
+   long currentLogin = AccountInfoInteger(ACCOUNT_LOGIN);
+   string currentServer = AccountInfoString(ACCOUNT_SERVER);
+
+   if(InpExpectedAccountLogin > 0 && currentLogin != InpExpectedAccountLogin)
+   {
+      Print("Account login mismatch. Current=", IntegerToString(currentLogin), " expected=", IntegerToString(InpExpectedAccountLogin));
+      return false;
+   }
+
+   if(StringLen(InpExpectedAccountServer) > 0)
+   {
+      string a = StringToLowerSafe(currentServer);
+      string b = StringToLowerSafe(InpExpectedAccountServer);
+      if(StringFind(a, b) < 0 && StringFind(b, a) < 0)
+      {
+         Print("Account server mismatch. Current=", currentServer, " expected=", InpExpectedAccountServer);
+         return false;
+      }
+   }
+
+   return true;
+}
+
+//+------------------------------------------------------------------+
 string BuildSignalUrl(double price, double emaFast, double emaSlow, double rsi, int atrPoints, int spreadPoints, string candleDir)
 {
    string base = InpWorkerUrl;
@@ -168,6 +226,9 @@ string BuildSignalUrl(double price, double emaFast, double emaSlow, double rsi, 
       "&minConfidence=" + IntegerToString(InpMinConfidence) +
       "&maxSpreadPoints=" + IntegerToString(InpMaxSpreadPoints) +
       "&rr=" + DoubleToString(InpRR, 2) +
+      "&mt5Login=" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
+      "&mt5Server=" + UrlEncode(AccountInfoString(ACCOUNT_SERVER)) +
+      "&accountCompany=" + UrlEncode(AccountInfoString(ACCOUNT_COMPANY)) +
       "&token=" + UrlEncode(InpAppToken);
    return url;
 }
